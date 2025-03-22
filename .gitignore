@@ -4,6 +4,7 @@ org_jtext/
 env/
 .env/
 __pycache__/
+.ipynb_checkpoints/
 .DS_Store
 #ignore ML training logs
 logs/

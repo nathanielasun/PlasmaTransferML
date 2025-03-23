@@ -2,6 +2,7 @@ import logging
 import numpy as np
 import pandas as pd
 import scipy
+import PFileManager as PFM
 
 logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
@@ -43,6 +44,22 @@ class PDataRoutines:
 
         return data_stats
 
+    def labelHDF5Data(self, filelist):
+        """
+        Returns a numpy array of labels (0/1) for the inputted hdf5 file list
+        Performs labeling using PFileManager's isDisruptiveHDF5 method
+        """
+        labels = np.array([])
+        try:
+            for file in filelist:
+                labels = np.append(labels, PFM.isDisruptiveHDF5(file))
+        except Exception as e:
+            logging.error("Failed to label data: %s", filelist)
+        
+        return labels
+
+        
+    
     def normalizeData(self, feature, stats):
         """
         Uses mean and standard deviation of data feature to apply normalization

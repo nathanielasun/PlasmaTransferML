@@ -23,8 +23,6 @@ class PlasmaDataset:
         Dataset.addDataset("test", RESET=reset)
         Dataset.addDataset("val", RESET=reset)
         
-                
-        
         logging.info("Created train/test/val dirs at: \n%s\n%s\n%s", train_dir, test_dir, val_dir)
 
     def sourceDataset(self, dataset, features = None, labeled=True, reset=True):

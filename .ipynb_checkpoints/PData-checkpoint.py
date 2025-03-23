@@ -30,7 +30,7 @@ class PData:
         self.data_dirs['org_dir'] = org_directory #set the organized data directory
         logging.info("Initialized with organized data directory: %s", org_directory)
         
-    def addDataset(self, name, components=[], RESET=False):
+    def addDataset(self, name:str, components=[], RESET=False):
         """
         Adds a new dataset with named dataframe components as per components
         I.e. 'name' : { 'norm' : pd.DataFrame() , 'raw' : pd.DataFrame()...} where 'norm' and 'raw' are in "components" list
@@ -47,7 +47,7 @@ class PData:
         except Exception as e:
             logging.error("Failed to add new dataset due to %s", e)
 
-    def addDirectory(self, dir_name):
+    def addDirectory(self, dir_name:str):
         """
         Routine to initialize subdirectories and add new directories
         Appends a new directory label and location to data_config
@@ -59,7 +59,7 @@ class PData:
         except Exception as e:
             logging.error("Failed to make directory for %s: %s", target_dir, e)
     
-    def deleteDataset(self, dataset):
+    def deleteDataset(self, dataset:str):
         """
         Deletes dataset from self.data and physical location
         """
@@ -74,7 +74,7 @@ class PData:
         except Exception as e:
             logging.error("Failed to remove dataset %s: %s", dataset, e)
         
-    def deleteSubdirs(self, dir_name):
+    def deleteSubdirs(self, dir_name:str):
         """
         Deletes all subdirectories within the given root directory.
         """
@@ -86,7 +86,12 @@ class PData:
                     logging.info("Deleted directory: %s", item_path)
             except Exception as e:
                 logging.error("Failed to remove file %s: %s", item, e)
-
+    def exportDataComponent(self, dataset, component):
+        """
+        Exports the data from a dataset component in pandas dataframe format
+        """
+        return self.data[dataset][component]
+            
     def setDataFrac(self, new_data_frac):
         """
         Routine to set fraction of data to load from data component directories when running experiments and training
@@ -108,7 +113,7 @@ class PData:
         i.e. adds {'featureN' : [[x1, x2, ... xn], ...] } to raw data
         """
         try:
-            self.data[dataset][component] = pd.concat([self.data[dataset][component], pd.DataFrame(data)], keep_index=True)
+            self.data[dataset][component] = pd.concat([self.data[dataset][component], pd.DataFrame(data)], ignore_index=True)
             logging.info("Updated %s %s data", dataset, component) 
         except Exception as e:
             logging.error("Failed to update %s %s: %s", dataset, component, e)

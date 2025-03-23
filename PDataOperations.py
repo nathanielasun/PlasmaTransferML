@@ -44,7 +44,7 @@ class PDataRoutines:
 
         return data_stats
 
-    def labelHDF5Data(self, filelist):
+    def labelHDF5Data(self, filelist:list):
         """
         Returns a numpy array of labels (0/1) for the inputted hdf5 file list
         Performs labeling using PFileManager's isDisruptiveHDF5 method
@@ -58,8 +58,6 @@ class PDataRoutines:
         
         return labels
 
-        
-    
     def normalizeData(self, feature, stats):
         """
         Uses mean and standard deviation of data feature to apply normalization

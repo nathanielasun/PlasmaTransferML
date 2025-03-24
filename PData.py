@@ -44,7 +44,7 @@ class PData:
         try:
             self.data[name] = {}
             for component in components:
-                self.data[name][component] = pd.DataFrame()
+                self.data[name][component] = pd.DataFrame(dtype=object)
             self.addDirectory(name)
             logging.info("Added new dataset %s with components %s", name, components)
         except Exception as e:
@@ -90,55 +90,12 @@ class PData:
             except Exception as e:
                 logging.error("Failed to remove file %s: %s", item, e)
 
-    def describeDataset(self, dataset: str, show_features: bool = False) -> dict:
+    def describeDataset(self, dataset:str):
         """
-        Provides basic information about the specified dataset.
-        
-        For a dataset stored as:
-          self.data[dataset] = {'raw': DataFrame, 'norm': DataFrame, 'files': list, ...}
-      
-        This method prints a summary like:
-          "train dataset: raw-14 norm-14 files-200"
-        
-        If show_features is True, and if a component is a DataFrame,
-        it collects its column names as features and prints them:
-          "Features: ['ip', 'ip_error', 'dx', 'dy']"
-        
-        Returns a dictionary with each component's length and, if applicable, 
-        a 'features' key with a list of unique features.
+        Gives basic information about specified dataset
+        Prints dataset features (if true), lists, components, and prints dataset size
         """
-        if dataset not in self.data:
-            logging.error("Dataset '%s' not found.", dataset)
-            return {}
-    
-        dataset_dict = self.data[dataset]
-        data_info = {}
-        desc_parts = []
-    
-        # Iterate over each component to compute its length
-        for comp, comp_data in dataset_dict.items():
-            try:
-                comp_length = len(comp_data)
-            except Exception as e:
-                logging.error("Failed to determine length of component '%s': %s", comp, e)
-                comp_length = None
-            data_info[comp] = comp_length
-            desc_parts.append(f"{comp}-{comp_length}")
-    
-        description = f"{dataset} dataset: " + " ".join(desc_parts)
-        print(description)
-
-        # If requested, collect features from DataFrame components
-        if show_features:
-            features = set()
-            for comp, comp_data in dataset_dict.items():
-                if isinstance(comp_data, pd.DataFrame):
-                    features.update(comp_data.columns.tolist())
-            features_list = list(features)
-            data_info['features'] = features_list
-            print("Features:", features_list)
-    
-        return data_info
+        print(self.data[dataset])     
     
     def exportDataComponent(self, dataset, component):
         """
@@ -160,27 +117,28 @@ class PData:
         self.data_dirs['org_dir'] = new_org_dir
         logging.info("Set new organized data directory to: %s", new_org_dir)
 
-    def updateDatasetComponent(self, dataset:str, component:str, data):
+    def updateDatasetComponent(self, dataset:str, component:list, data:dict):
         """
-        Appends new data to given dataset raw data keeping set index
+        Appends new data to given dataset component keeping set index
         Assumes order of data for feature(s) stays consistent with labeling
-        i.e. adds {'featureN' : [[x1, x2, ... xn], ...] } to raw data
+        i.e. adds {'feat1' : [[x1, x2, ... xn]], 'feat2':[[x1,x2,...xn]],... } to raw data
+        Assumes same features in input as in dataset
         """
         try:
-            self.data[dataset][component] = pd.concat([self.data[dataset][component], pd.DataFrame(data)], ignore_index=True)
+            self.data[dataset][component] = pd.concat([self.data[dataset][component], pd.DataFrame(data, dtype=object)], ignore_index=True)
             logging.info("Updated %s %s data", dataset, component) 
         except Exception as e:
             logging.error("Failed to update %s %s: %s", dataset, component, e)
     
     def setDatasetComponent(self, dataset:str, component:str, data):
         """
-        Replaces dataset component with new component
+        Sets dataset component with new component
         Assumes dataframe/dictionary format i.e. for stats: {'feature1' : (u1, o1), 'feature2' : (u2, o2), ... }
         I.e. for raw data: {'feature1' : [[x1, x2, ..., xn], [y1,y2, ..., yn], ...], 'feature2'...}
         """
         try:
-            self.data[dataset][component] = pd.DataFrame(data)
-            logging.info("Updated dataset %s component %s", dataset, component)
+            self.data[dataset][component] = pd.DataFrame(data, dtype=object)
+            logging.info("Reset dataset %s component %s", dataset, component)
         except Exception as e:
             logging.error("Failed to update data: %s", e)
 
@@ -191,7 +149,7 @@ class PData:
         """
         try:
             for component in components:
-                self.data[dataset][component] = pd.DataFrame()
+                self.data[dataset][component] = pd.DataFrame(dtype=object)
         except Exception as e:
             logging.error("Failed to reset components %s: %s", components, e)
         logging.info("Reset '%s' %s data", dataset, components) 

@@ -1,8 +1,9 @@
 import h5py
 import inspect
 import logging
-import PData
-import PDataOperations
+import numpy as np
+from PData import PData
+import PDataOperations as PDO
 import PFileManager as PFM
 
 logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBUG,
@@ -11,46 +12,71 @@ logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBU
 class PlasmaDataset:
     
     def __init__(self, org_directory, h5_source):
-
-        Dataset = new PData(org_directory, h5_source)
-    
-    def createMLDataStructure(self, data_split, reset=True):
+        
+        self.Dataset = PData(org_directory, h5_source)
+        self.org_dir = org_directory #organized data directory
+        self.h5_source = h5_source #hdf5 source data directory
+        logging.info("Initialized PlasmaDataset with org_dir=%s and h5_source=%s", self.org_dir, self.h5_source)
+        
+    def initPlasmaDataset(self, reset:bool=True):
         """
-        Routine to generate train/test/val data structure with respective disruptive/nondisruptive folders
+        Routine to create an plasma ML train/test/val dataset with set data split and fraction
         Keeping reset true will replace the existing datasets train/test/val
         """
-        Dataset.addDataset("train", RESET=reset)
-        Dataset.addDataset("test", RESET=reset)
-        Dataset.addDataset("val", RESET=reset)
+        #Create train/test/val datasets with raw/norm/file data components
+        try:  
+            self.Dataset.addDataset("train", ['raw', 'norm', 'files'], RESET=reset)
+            self.Dataset.addDataset("test", ['raw', 'norm', 'files'], RESET=reset)
+            self.Dataset.addDataset("val", ['raw', 'norm', 'files'], RESET=reset)
+            self.Dataset.addDataset("stats", ['stats'], RESET=reset)
+            logging.info("Successfully created train/test/val datasets")
+        except Exception as e:
+            logging.error("Failed to create train/test/val datasets: %s", e)
         
-        logging.info("Created train/test/val dirs at: \n%s\n%s\n%s", train_dir, test_dir, val_dir)
-
-    def sourceDataset(self, dataset, features = None, labeled=True, reset=True):
+    def sourceData(self, data_split:list, features:list = None, data_frac:float = 1):
         """
-        Acquires raw data features from file list for given dataset at data fraction
+        Acquires raw data features from file list for train/test/val datasets at data fraction
         i.e. for train data, sources features from hdf5 files in train directory
         Sources features from given feature list. None indicates all hdf5 features by default.
-        Note: reset will completely wipe the existing dataset - used by default for feature tuning
+        Note: currently wipes existing data every time used - use only for changing features for training
         """
-        data_frac = self.data_config['data_frac']
-        
-        if reset:
-            self.wipeDataset(dataset)
+        #collect hdf5 file locations, assign splits, and fraction data
+        try:
+            hdf5_files = PFM.sourceHDF5(hdf5_path=self.h5_source)
+            train_files, test_files, val_files = PDO.splitData(split=data_split, files=hdf5_files, randomize=True)
+            train_files = train_files[:round(data_frac*len(train_files))]
+            test_files = test_files[:round(data_frac*len(test_files))]
+            val_files = val_files[:round(data_frac*len(val_files))]
+            logging.info("Successfully sourced and split HDF5 files")
+        except Exception as e:
+            logging.error("Failed to source and split HDF5 files: %s", e)
+            return
             
-        feat_list = [] #list to take specified file features
-        #initialize labels within x dataset dictionary
-        self.data[dataset]['raw']['label'] = []
-        files = self.data[dataset]['files']
-        for hdf5_file in files[:round(len(files)*data_frac)]:
-            feat_list, feat_names = self.sourceHDF5Data(hdf5_file, features)
-            for i in range(len(feat_names)):
-                if feat_names[i] in self.data[dataset]['raw']:
-                    self.data[dataset]['raw'][feat_names[i]].append([feat_list[i]])
-                else:
-                    self.data[dataset]['raw'][feat_names[i]] = [feat_list[i]]
-            if labeled:#append the label information if the hdf5/datafile contains it
-                self.data[dataset]['raw']['label'].append(self.isDisruptiveHDF5(hdf5_file))
-                
-        logging.info(f"Constructed dataset '{dataset}' with {len(self.data[dataset]['raw']['label'])} files and {len(self.data[dataset]['raw']) - 1 if labeled else 0 } features")
-    
-        
+        #update train/test/val datasets with their files
+        try:
+            self.Dataset.updateDatasetComponent('train', 'files', train_files)
+            self.Dataset.updateDatasetComponent('test', 'files', test_files)
+            self.Dataset.updateDatasetComponent('val', 'files', val_files)
+            logging.info("Successfully assigned HDF5 files to train/test/val")
+        except Exception as e:
+            logging.error("Failed to assign HDF5 files to train/test/val: %s", e)
+            return
+
+        #source raw data into train/test/val
+        try:
+            train_data = PFM.sourceHDF5Data(train_files, features)
+            test_data = PFM.sourceHDF5Data(test_files, features)
+            val_data = PFM.sourceHDF5Data(val_files, features)
+            logging.info("Successfully sourced train/test/val data")
+        except Exception as e:
+            logging.error("Failed to source train/test/val data: %s", e)
+
+        #assign train/test/val raw data
+        try:
+            self.Dataset.updateDatasetComponent('train', 'raw', train_data)
+            self.Dataset.updateDatasetComponent('test', 'raw', test_data)
+            self.Dataset.updateDatasetComponent('val', 'raw', val_data)
+        except Exception as e:
+            logging.error("Failed to assign train/test/val/data: %s", e)
+
+        self.Dataset.describeDataset("train")

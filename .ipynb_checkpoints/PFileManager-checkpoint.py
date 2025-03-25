@@ -17,34 +17,20 @@ def isDisruptiveHDF5(hdf5_loc):
         label = f['meta/IsDisrupt'][()]
         
     return 1 if label else 0
-
-def organizeData(files, org_dir, label_names=[0, 1]):
-    """
-    Pulls files from a pandas dataframe sorted into dataset filelists into a directory with labels
-    Each dataset filelist header i.e. "train/test/val" will be used as the subdirectory folder name
-       If labels have names, i.e. nondisruptive/disruptive, these should be noted in "label_names" otherwise 0/1 by default
-    Each file within a dataset filelist is a tuple (filepath, label)
-    By default creates dataset subdirectories for binary labels - i.e. train/test/val each have disruptive/nondisruptive folders
-    """
     
-    for fileset in files:
-        subdir = os.path.join(org_dir, fileset)
-        label0, label1 = os.path.join(subdir, label_names[0]), os.path.join(subdir, label_names[1])
-        os.mkdir(subdir, exist_ok=True)
-        os.mkdir(label0, exist_ok=True)
-        os.mkdir(label1, exist_ok=True)
- 
-    for file_tuple in files[fileset]:
-        file, label = file_tuple[0], file_tuple[1]
-        try:   
-            file_path = os.path.splitext(os.path.basename(file))[0]
-            new_file_path = os.path.join(label1, file) if label else os.path.join(label0, file)
-            shutil.copy(file, new_file_path + '.hdf5')
+def deleteSubdirs(dir_name:str):
+    """
+    Deletes all subdirectories within the given root directory.
+    """
+    for item in os.listdir(dir_name):
+        try:
+            item_path = os.path.join(dir_name, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)  # Delete directory and its contents
+                logging.info("Deleted directory: %s", item_path)
         except Exception as e:
-            logging.error("Skipping file %s: %s", file, e)
-    
-    logging.info(f"Exported {len(files[fileset])} hdf5 files to %s", data_dir)
-
+            logging.error("Failed to remove file %s: %s", item, e)
+            
 def getHDF5Feats(file_dir:str) -> dict:
     """
     Returns a dictionary of HDF5 features by feature type
@@ -59,6 +45,42 @@ def getHDF5Feats(file_dir:str) -> dict:
                 logging.error(f"Failed to create feature list for %s: %s", feat_type, e)
             feat_dict[feat_type] = feat_list
     return feat_dict
+    
+def organizeData(files:dict, org_dir:str, label_names:list=[0, 1]):
+    """
+    Pulls files from a dictionary sorted into dataset filelists into a directory with labels.
+    Each dataset filelist header (i.e. "train/test/val") will be used as the subdirectory folder name.
+    If labels have names (e.g. nondisruptive/disruptive), these should be noted in "label_names",
+    otherwise 0/1 are used by default.
+    Each file within a dataset filelist is a tuple (filepath, label).
+    By default, creates dataset subdirectories for binary labels: each of train/test/val will have disruptive/nondisruptive folders.
+    """
+    
+    for fileset in files:
+        subdir = os.path.join(org_dir, fileset)
+        # Ensure label directory names are strings
+        label0_dir = os.path.join(subdir, str(label_names[0]))
+        label1_dir = os.path.join(subdir, str(label_names[1]))
+        
+        # Create subdirectories
+        os.makedirs(label0_dir, exist_ok=True)
+        os.makedirs(label1_dir, exist_ok=True)
+ 
+        for file in files[fileset]:
+            file_name = file[0]
+            file_label = file[1]
+            try:
+                # Extract just the base name without extension
+                base_name, _ = os.path.splitext(os.path.basename(file_name))
+                # Build new file name with .hdf5 extension
+                new_file_name = base_name + '.hdf5'
+                # Choose destination directory based on label (truthy value selects label1_dir)
+                dest_dir = label1_dir if file_label else label0_dir
+                new_file_path = os.path.join(dest_dir, new_file_name)
+                shutil.copy(file_name, new_file_path)
+            except Exception as e:
+                logging.error("Skipping file %s: %s", file_name, e)
+        logging.info("Exported %d hdf5 files to %s", len(files[fileset]), subdir)
 
 def sourceHDF5(hdf5_path:str) -> list:
     """
@@ -82,10 +104,13 @@ def sourceHDF5Data(file_list:list, features:list = None) -> "feature pandas data
     """
     Sources features from an HDF5 file and outputs a 2D pandas dataframe with features and multifile feature data
     By default (None) sources all features from file
+    File_list comes in as a list of tuples: (filepath, label)
     """
     feat_data = pd.DataFrame(dtype=object)
-
-    for file_dir in file_list:
+    #check if the file_list is/is not a tuple and source only files from the tuple if so
+        
+    for file_zip in file_list:
+        file_dir = file_zip[0]
         feat_list = pd.DataFrame(dtype=object)
         with h5py.File(file_dir, 'r') as hdf5_file:
             for feature in features if features else hdf5_file['data']:

@@ -2,6 +2,7 @@ import h5py
 import inspect
 import logging
 import numpy as np
+import pandas as pd
 from PData import PData
 import PDataOperations as PDO
 import PFileManager as PFM
@@ -51,26 +52,35 @@ class PlasmaDataset:
         except Exception as e:
             logging.error("Failed to source and split HDF5 files: %s", e)
             return
-            
-        #update train/test/val datasets with their files
+        #label files and create file dataframe
         try:
-            self.Dataset.updateDatasetComponent('train', 'files', train_files)
-            self.Dataset.updateDatasetComponent('test', 'files', test_files)
-            self.Dataset.updateDatasetComponent('val', 'files', val_files)
+            train_labels = PDO.labelHDF5Data(train_files)
+            test_labels = PDO.labelHDF5Data(test_files)
+            val_labels = PDO.labelHDF5Data(val_files)
+            file_info = {
+                 'train':list(zip(train_files, train_labels)),
+                 'test':list(zip(test_files, test_labels)), 
+                 'val':list(zip(val_files, val_labels))
+            }
+        except Exception as e:
+            logging.error("Failed to label data: %s", e)
+        #update train/test/val datasets with their files (and file labels)
+        try:
+            self.Dataset.updateDatasetComponent('train', 'files', file_info['train'])
+            self.Dataset.updateDatasetComponent('test', 'files', file_info['test'])
+            self.Dataset.updateDatasetComponent('val', 'files', file_info['val'])
             logging.info("Successfully assigned HDF5 files to train/test/val")
         except Exception as e:
             logging.error("Failed to assign HDF5 files to train/test/val: %s", e)
             return
-
         #source raw data into train/test/val
         try:
-            train_data = PFM.sourceHDF5Data(train_files, features)
-            test_data = PFM.sourceHDF5Data(test_files, features)
-            val_data = PFM.sourceHDF5Data(val_files, features)
+            train_data = PFM.sourceHDF5Data(file_info['train'], features)
+            test_data = PFM.sourceHDF5Data(file_info['test'], features)
+            val_data = PFM.sourceHDF5Data(file_info['val'], features)
             logging.info("Successfully sourced train/test/val data")
         except Exception as e:
             logging.error("Failed to source train/test/val data: %s", e)
-
         #assign train/test/val raw data
         try:
             self.Dataset.updateDatasetComponent('train', 'raw', train_data)
@@ -78,5 +88,11 @@ class PlasmaDataset:
             self.Dataset.updateDatasetComponent('val', 'raw', val_data)
         except Exception as e:
             logging.error("Failed to assign train/test/val/data: %s", e)
-
+        #organize file directories under org_dir
+        try:
+            PFM.organizeData(files=file_info, org_dir=self.org_dir, label_names=['disruptive', 'nondisruptive'])
+        except Exception as e:
+            logging.error("Failed to organize train/test/val directories: %s", e)
+        
         self.Dataset.describeDataset("train")
+        

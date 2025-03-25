@@ -2,7 +2,7 @@ import logging
 import numpy as np
 import pandas as pd
 import scipy
-import PFileManager
+import PFileManager as PFM
 
 logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
@@ -48,11 +48,11 @@ def labelHDF5Data(filelist:list):
     Performs labeling using PFileManager's isDisruptiveHDF5 method
     """
     labels = np.array([])
-    try:
-        for file in filelist:
+    for file in filelist:
+        try:
             labels = np.append(labels, PFM.isDisruptiveHDF5(file))
-    except Exception as e:
-        logging.error("Failed to label data: %s", filelist)
+        except Exception as e:
+            logging.error("Failed to label data: %s", file)
     
     return labels
 

@@ -76,26 +76,13 @@ class PData:
             logging.info("Removed dataset %s", dataset)
         except Exception as e:
             logging.error("Failed to remove dataset %s: %s", dataset, e)
-        
-    def deleteSubdirs(self, dir_name:str):
-        """
-        Deletes all subdirectories within the given root directory.
-        """
-        for item in os.listdir(dir_name):
-            try:
-                item_path = os.path.join(dir_name, item)
-                if os.path.isdir(item_path):
-                    shutil.rmtree(item_path)  # Delete directory and its contents
-                    logging.info("Deleted directory: %s", item_path)
-            except Exception as e:
-                logging.error("Failed to remove file %s: %s", item, e)
 
     def describeDataset(self, dataset:str):
         """
         Gives basic information about specified dataset
         Prints dataset features (if true), lists, components, and prints dataset size
         """
-        print(self.data[dataset])     
+        print(self.data[dataset])
     
     def exportDataComponent(self, dataset, component):
         """

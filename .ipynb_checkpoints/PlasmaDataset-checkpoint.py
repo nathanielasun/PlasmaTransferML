@@ -93,6 +93,16 @@ class PlasmaDataset:
             PFM.organizeData(files=file_info, org_dir=self.org_dir, label_names=['disruptive', 'nondisruptive'])
         except Exception as e:
             logging.error("Failed to organize train/test/val directories: %s", e)
-        
+
         self.Dataset.describeDataset("train")
+        
+    def calcDataStats(self):
+        """
+        Calculates dataset stats from train dataset and stores in "stats" w/ features
+        """
+        datastats = PDO.datasetStats(self.Dataset.exportDataComponents('train', 'raw'))
+        self.Dataset.updateDatasetComponent('stats', 'stats', datastats)
+        self.Dataset.describeDataset('stats')
+    
+    
         

@@ -31,14 +31,13 @@ def datasetStats(dataset):
     Stores feature statistics in "stats" in self.data as a tuple (u, o)
     Consider organizing stats by dataset instead of one for train/test/val
     """
-    data_stats = {}
+    data_stats = pd.DataFrame()
     
-    logging.info("Dataset size: %s", len(dataset['raw']) - 1)
-    for feature in dataset['raw']:
-        if feature == 'label':
-            continue
+    logging.info("Dataset size: %s", len(dataset))
+    for feature in dataset:
         logging.info(feature)
-        data_stats[feature] = (mean, sd)
+        mean, sd = dataStats(dataset[feature])
+        data_stats[feature] = [mean, sd]
 
     return data_stats
 

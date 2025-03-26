@@ -84,10 +84,11 @@ class PData:
         """
         print(self.data[dataset])
     
-    def exportDataComponent(self, dataset, component):
+    def exportDataComponents(self, dataset, component:str) -> "dataset components dataframe":
         """
         Exports the data from a dataset component in pandas dataframe format
         """
+            
         return self.data[dataset][component]
             
     def setDataFrac(self, new_data_frac):

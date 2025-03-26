@@ -8,22 +8,20 @@ logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBU
                     format='%(asctime)s [%(levelname)s] %(message)s')
 
 
-def dataStats(data):
+def dataStats(data:list) -> float:
     """
     Returns the mean and standard deviation of inputted array using scipy
     """
     cal_data = np.array([]) #flatten all feature data to a numpy array
-    
     for i in data:
-        cal_data = np.append(cal_data, i)
-            
+        cal_data = np.append(cal_data, i)       
     data_params = scipy.stats.describe(cal_data)
     data_mean = data_params.mean
     data_sd = np.sqrt(data_params.variance)
         
     return data_mean, data_sd
 
-def datasetStats(dataset):
+def datasetStats(dataset:"dataframe") -> "dataframe":
     """
     Returns the compiled mean and standard deviation of a dataset
     Typically use train dataset for machine learning purposes
@@ -35,13 +33,15 @@ def datasetStats(dataset):
     
     logging.info("Dataset size: %s", len(dataset))
     for feature in dataset:
-        logging.info(feature)
-        mean, sd = dataStats(dataset[feature])
-        data_stats[feature] = [mean, sd]
+        try:
+            mean, sd = dataStats(dataset[feature])
+            data_stats[feature] = [mean, sd]
+        except Exception as e:
+            logging.error("Failed to calculate stats for %s: %s", feature, e)
 
     return data_stats
 
-def labelHDF5Data(filelist:list):
+def labelHDF5Data(filelist:list) -> list:
     """
     Returns a numpy array of labels (0/1) for the inputted hdf5 file list
     Performs labeling using PFileManager's isDisruptiveHDF5 method
@@ -55,33 +55,32 @@ def labelHDF5Data(filelist:list):
     
     return labels
 
-def normalizeData(feature, stats):
+def normalizeData(feature:list, stats:list) -> list:
     """
     Uses mean and standard deviation of data feature to apply normalization
     stats is a tuple (mean, sd)
     """
     (mean, sd) = stats
     norm_feature = [[(val - mean)/sd for val in feat] for feat in feature]
-        
+    
     return norm_feature
 
-def normalizeDataset(dataset, statset):
+def normalizeDataset(dataset:"dataframe component", statset:"dataframe") -> "normalized dataframe":
     """
     Takes inputted stats dataset for features to normalize dataset
+    Assumes input is a dataset component, not a dataset! I.e. raw data w/ features, etc.
     """
-    norm_data = {}
-    for feat in dataset['raw']:
-        if feat == 'label':
-            continue
-        norm_feat = pd.DataFrame(normalizeData(dataset['raw'][feat], statset[feat]))
-        norm_data = pd.concat([norm_data, norm_feat])
-        
-    pd.concat([norm_data, pd.DataFrame(dataset['raw']['label'])])
-    logging.info("Normalized %s", dataset)
-    
+    norm_data = pd.DataFrame()
+    try:
+        for feat in dataset:
+            norm_data[feat] = normalizeData(dataset[feat], statset[feat])
+            logging.info("Normalized %s", feat)
+    except Exception as e:
+        logging.error("Failed to normalize dataset: %s", e)
+
     return norm_data
 
-def splitData(split, files, randomize=True):
+def splitData(split:list, files:list, randomize:bool=True) -> "train/test/val file split lists":
     """
     Routine to split input files into train/test/val data according to split
     If split does not sum to 1, extra data will go to validation

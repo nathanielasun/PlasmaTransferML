@@ -8,7 +8,7 @@ import shutil
 logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
 
-def isDisruptiveHDF5(hdf5_loc):
+def isDisruptiveHDF5(hdf5_loc:str) -> bool:
     """
     Defines a routine to classify HDF5 file as disruptive/non-disruptive using metadata
     1 - disruptive
@@ -118,7 +118,7 @@ def sourceHDF5Data(file_list:list, features:list = None) -> "feature pandas data
                     feat = np.array(hdf5_file[f'data/{feature}'])
                     feat_list[feature] = [feat]
                 except Exception as e:
-                    logging.error(f"Failed to add feature due to {e}")
+                    logging.error("Failed to add feature: %s", e)
         feat_data = pd.concat([feat_data, pd.DataFrame(feat_list, dtype=object)], ignore_index=True)
-        
+    logging.info("%s data sourced from HDF5s", features if features else "Features")
     return feat_data

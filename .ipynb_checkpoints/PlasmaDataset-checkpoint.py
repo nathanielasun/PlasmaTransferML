@@ -11,7 +11,11 @@ logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBU
                     format='%(asctime)s [%(levelname)s] %(message)s')
 
 class PlasmaDataset:
-    
+    """
+    Creates and manages a dataset of tokamak data sourced from HDF5 files
+    Organizes into train/test/val datasets and directories and normalizes data
+    Builds off of selected features
+    """
     def __init__(self, org_directory, h5_source):
         
         self.Dataset = PData(org_directory, h5_source)
@@ -19,7 +23,7 @@ class PlasmaDataset:
         self.h5_source = h5_source #hdf5 source data directory
         logging.info("Initialized PlasmaDataset with org_dir=%s and h5_source=%s", self.org_dir, self.h5_source)
         
-    def initPlasmaDataset(self, reset:bool=True):
+    def initialize(self, reset:bool=True):
         """
         Routine to create an plasma ML train/test/val dataset with set data split and fraction
         Keeping reset true will replace the existing datasets train/test/val
@@ -34,7 +38,7 @@ class PlasmaDataset:
         except Exception as e:
             logging.error("Failed to create train/test/val datasets: %s", e)
         
-    def sourceData(self, data_split:list, features:list = None, data_frac:float = 1):
+    def source(self, data_split:list, features:list = None, data_frac:float = 1):
         """
         Acquires raw data features from file list for train/test/val datasets at data fraction
         i.e. for train data, sources features from hdf5 files in train directory
@@ -93,16 +97,49 @@ class PlasmaDataset:
             PFM.organizeData(files=file_info, org_dir=self.org_dir, label_names=['disruptive', 'nondisruptive'])
         except Exception as e:
             logging.error("Failed to organize train/test/val directories: %s", e)
-
-        self.Dataset.describeDataset("train")
         
-    def calcDataStats(self):
+    def calcStats(self):
         """
         Calculates dataset stats from train dataset and stores in "stats" w/ features
         """
-        datastats = PDO.datasetStats(self.Dataset.exportDataComponents('train', 'raw'))
+        datastats = PDO.datasetStats(self.Dataset.exportDataComponent('train', 'raw'))
         self.Dataset.updateDatasetComponent('stats', 'stats', datastats)
-        self.Dataset.describeDataset('stats')
+
+    def normalize(self):
+        """
+        Performs normalization on train/test/val using data stats
+        """
+        try:
+            stats = self.Dataset.exportDataComponent("stats", "stats")
+            train_norm = PDO.normalizeDataset(self.Dataset.exportDataComponent('train', 'raw'), stats)
+            test_norm = PDO.normalizeDataset(self.Dataset.exportDataComponent('test', 'raw'), stats)
+            val_norm = PDO.normalizeDataset(self.Dataset.exportDataComponent('val', 'raw'), stats)
+            logging.info("Successfully normalized train/test/val")
+        except Exception as e:
+            logging.error("Failed to normalize train/test/val: %s", e)
+
+        try:
+            self.Dataset.updateDatasetComponent('train', 'norm', train_norm)
+            self.Dataset.updateDatasetComponent('test', 'norm', test_norm)
+            self.Dataset.updateDatasetComponent('val', 'norm', val_norm)
+            logging.info("Successfully updated normalized train/test/val")
+        except Exception as e:
+            logging.error("Failed to update normalized train/test/val: %s", e)
+
+    def preview(self, dataset:str=None):
+        """
+        Shows a preview of train/test/val
+        """
+        if dataset is None:
+            self.Dataset.describeDataset('train')
+            self.Dataset.describeDataset('test')
+            self.Dataset.describeDataset('val')
+            self.Dataset.describeDataset('stats')
+        else:
+            try:
+                self.Dataset.describeDataset(dataset)
+            except Exception as e:
+                logging.error('Failed to access preview of %s: %s', dataset, e)
     
-    
+                
         

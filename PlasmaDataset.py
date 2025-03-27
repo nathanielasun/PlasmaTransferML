@@ -21,6 +21,7 @@ class PlasmaDataset:
         self.Dataset = PData(org_directory, h5_source)
         self.org_dir = org_directory #organized data directory
         self.h5_source = h5_source #hdf5 source data directory
+        self.file_info = {}
         logging.info("Initialized PlasmaDataset with org_dir=%s and h5_source=%s", self.org_dir, self.h5_source)
         
     def initialize(self, reset:bool=True):
@@ -37,13 +38,9 @@ class PlasmaDataset:
             logging.info("Successfully created train/test/val datasets")
         except Exception as e:
             logging.error("Failed to create train/test/val datasets: %s", e)
-        
-    def source(self, data_split:list, features:list = None, data_frac:float = 1):
+    def sourceFiles(self, data_split:list, data_frac:float = 1):
         """
-        Acquires raw data features from file list for train/test/val datasets at data fraction
-        i.e. for train data, sources features from hdf5 files in train directory
-        Sources features from given feature list. None indicates all hdf5 features by default.
-        Note: currently wipes existing data every time used - use only for changing features for training
+        Sources, splits, and labels file directories to train/test/val
         """
         #collect hdf5 file locations, assign splits, and fraction data
         try:
@@ -61,27 +58,35 @@ class PlasmaDataset:
             train_labels = PDO.labelHDF5Data(train_files)
             test_labels = PDO.labelHDF5Data(test_files)
             val_labels = PDO.labelHDF5Data(val_files)
-            file_info = {
+            self.file_info = {
                  'train':list(zip(train_files, train_labels)),
                  'test':list(zip(test_files, test_labels)), 
                  'val':list(zip(val_files, val_labels))
             }
         except Exception as e:
             logging.error("Failed to label data: %s", e)
+        
+    def sourceData(self, features:list = None):
+        """
+        Acquires raw data features from file list for train/test/val datasets at data fraction
+        i.e. for train data, sources features from hdf5 files in train directory
+        Sources features from given feature list. None indicates all hdf5 features by default.
+        Note: currently wipes existing data every time used - use only for changing features for training
+        """
         #update train/test/val datasets with their files (and file labels)
         try:
-            self.Dataset.updateDatasetComponent('train', 'files', file_info['train'])
-            self.Dataset.updateDatasetComponent('test', 'files', file_info['test'])
-            self.Dataset.updateDatasetComponent('val', 'files', file_info['val'])
+            self.Dataset.updateDatasetComponent('train', 'files', self.file_info['train'])
+            self.Dataset.updateDatasetComponent('test', 'files', self.file_info['test'])
+            self.Dataset.updateDatasetComponent('val', 'files', self.file_info['val'])
             logging.info("Successfully assigned HDF5 files to train/test/val")
         except Exception as e:
             logging.error("Failed to assign HDF5 files to train/test/val: %s", e)
             return
         #source raw data into train/test/val
         try:
-            train_data = PFM.sourceHDF5Data(file_info['train'], features)
-            test_data = PFM.sourceHDF5Data(file_info['test'], features)
-            val_data = PFM.sourceHDF5Data(file_info['val'], features)
+            train_data = PFM.sourceHDF5Data(self.file_info['train'], features)
+            test_data = PFM.sourceHDF5Data(self.file_info['test'], features)
+            val_data = PFM.sourceHDF5Data(self.file_info['val'], features)
             logging.info("Successfully sourced train/test/val data")
         except Exception as e:
             logging.error("Failed to source train/test/val data: %s", e)
@@ -94,7 +99,7 @@ class PlasmaDataset:
             logging.error("Failed to assign train/test/val/data: %s", e)
         #organize file directories under org_dir
         try:
-            PFM.organizeData(files=file_info, org_dir=self.org_dir, label_names=['disruptive', 'nondisruptive'])
+            PFM.organizeData(files=self.file_info, org_dir=self.org_dir, label_names=['disruptive', 'nondisruptive'])
         except Exception as e:
             logging.error("Failed to organize train/test/val directories: %s", e)
         

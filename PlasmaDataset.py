@@ -110,7 +110,7 @@ class PlasmaDataset:
         datastats = PDO.datasetStats(self.Dataset.exportDataComponent('train', 'raw'))
         self.Dataset.updateDatasetComponent('stats', 'stats', datastats)
 
-    def normalize(self):
+    def normalize(self, keep_raw=False):
         """
         Performs normalization on train/test/val using data stats
         """
@@ -122,7 +122,8 @@ class PlasmaDataset:
             logging.info("Successfully normalized train/test/val")
         except Exception as e:
             logging.error("Failed to normalize train/test/val: %s", e)
-
+        
+        #update train/test/val dataset norm component
         try:
             self.Dataset.updateDatasetComponent('train', 'norm', train_norm)
             self.Dataset.updateDatasetComponent('test', 'norm', test_norm)
@@ -130,6 +131,16 @@ class PlasmaDataset:
             logging.info("Successfully updated normalized train/test/val")
         except Exception as e:
             logging.error("Failed to update normalized train/test/val: %s", e)
+        
+        #wipe old train/test/val raw data if indicated
+        try:
+            if keep_raw != True:
+                self.Dataset.resetDatasetComponents('train', ['raw'])
+                self.Dataset.resetDatasetComponents('test', ['raw'])
+                self.Dataset.resetDatasetComponents('val', ['raw'])
+                logging.info('Successfully wiped old raw train/test/val data')
+        except Exception as e:
+            logging.error("Failed to wipe old raw train/test/val data")
 
     def preview(self, dataset:str=None):
         """

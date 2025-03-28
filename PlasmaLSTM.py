@@ -27,7 +27,12 @@ class PlasmaLSTM:
     
     def LSTMConstructor(self, layers):
         """
-        High-level construction routine
+        High-level construction routine for an LSTM
+        """
+        
 
     def LSTMInput(self, neurons):
         torch.nn.functional
+
+    def LSTMLayer(self, count, neurons):
+        je

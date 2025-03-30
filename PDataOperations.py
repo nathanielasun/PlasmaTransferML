@@ -74,7 +74,6 @@ def normalizeDataset(dataset:"dataframe component", statset:"dataframe") -> "nor
     try:
         for feat in dataset:
             norm_data[feat] = normalizeData(dataset[feat], statset[feat])
-            logging.info("Normalized %s", feat)
     except Exception as e:
         logging.error("Failed to normalize dataset: %s", e)
 

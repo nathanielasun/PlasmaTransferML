@@ -4,8 +4,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.utils.data import DataLoader
+import logging
 
-class PlasmaLSTM(nn.Module):
+logging.basicConfig(filename="./logs/PlasmaLSTM_logs.txt", level=logging.DEBUG,
+                    format='%(asctime)s [%(levelname)s] %(message)s')
+
+class LSTM_Linear(nn.Module):
     """
     Creates and manages a LSTM model for disruption prediction
     Assumes a LSTM -> Linear -> Output (one-hot) structure
@@ -24,22 +29,17 @@ class PlasmaLSTM(nn.Module):
             self.parameters['lstm_layers'] = [ 396, 101 ] #creates LSTM with given cell count for layer in layers variable
         if 'linear_layers' not in self.parameters:
             self.parameters['linear_layers'] = [ 300 ] #adds linear layer with neuron count per layer in list
+        if 'dropout_layers' not in self.parameters:
+            self.parameters['dropout_layers'] = [] #adds no default dropout layers - list takes form [p1, p2, ...] where p is dropout prob
             
-        #initialize default activators
+        #initialize default activation functions
         if 'lstm_activation' not in self.parameters:
             self.parameters['lstm_activation'] = F.tanh()
         if 'linear_activation' not in self.parameters:
             self.parameters['linear_activation'] = F.relu()
         if 'output_activation' not in self.parameters:
             self.parameters['output_activation'] = F.sigmoid()
-        if 'optimizer' not in self.parameters:
-            self.parameters['optimizer'] = 'adam'
-
-        #initialize default hyperparameters
-        if 'lr' not in self.parameters:
-            self.parameters['lr'] = 0.003
-        if 'init_weight' not in self.parameters:
-            self.parameters['init_weight'] = 'glorot'
+            
         """
         Constructs LSTM layers using the list 'lstm_layers' containing hidden size parameters for each layer
         Constructs linear layers using the list 'linear_layers' containing neuron counts for each layer
@@ -64,6 +64,12 @@ class PlasmaLSTM(nn.Module):
                 in_features=in_features,
                 out_features=self.parameters['linear_layers'][i]
             )
+            #implement dropout layers after each linear layer if dropout layers
+            if i < len(self.parameters['dropout_layers']):
+                self.model['linear'].append(
+                nn.Dropout(
+                    p = self.parameters['dropout_layers'][i]
+                )
             out_features = in_features
         #create a one-hot output layer
         self.model['output'] = nn.ModuleList([])
@@ -73,40 +79,119 @@ class PlasmaLSTM(nn.Module):
         """
         Pass data through model layers
         """
+        #pass through LSTM layers
         for lstm in self.model['lstm']:
             X = lstm(X)
             X = self.parameters['lstm_activation'](X)
+        #pass through linear and dropout layers
         for linear in self.model['linear']:
             X = linear(X)
             X = self.parameters['linear_activation'](X)
+        #pass through output layer
         X = self.model['output'](X)
-
+        X = self.parameters['output_activation'](X)
+        
         return X
 
-#------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------
 """
-Routines to handle model creation, training, and evaluation
+Class to handle model creation, training, and evaluation
+Makes an LSTM according to input parameter dict (can be received from randomizer)
 """
-device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
-model = None
-params = None
-
-def makeLSTM(parameters:"paramter dict"):
-    model = PlasmaLSTM(parameters)
-    model.to(device)
-    params = parameters
+class PlasmaLSTM:
+    def __init__(self, parameters):
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
+        self.model = None
+        self.params = parameters
+        
+    def makeLSTM(self):
+        try:
+            model = PlasmaLSTM(self.params)
+            model.to(self.device)
+            logging.info("Created PlasmaLSTM model")
     
-def trainLSTM(train_data, val_data):
-    optimizer = optim.Adam(
+        except Exception as e:
+            logging.error("Failed to create PlasmaLSTM model: %s", e)
         
-def runLSTM(data):
-
-def testLSTM(test_data):
-
+    def trainLSTM(self, train_data, val_data):
+        try:
+            optimizer = params['optimizer'](model.paramters(), lr=params['lr'])
+            criterion = params['criterion']
+            model.apply(initWeights)
+            train_loader = self.makeDataLoader(train_data).to(self.device)
+            val_loader = self.makeDataLoader(val_data).to(self.device)
+        except Exception as e:
+            logging.error("Failed to initialize optimizer/criterion/loader: %s", e)
         
+        try:
+            for epoch in range(params['epochs']):
+                model.train()
+                running_loss = 0.0
+                for inputs, targets in train_loader:
+                    optimizer.zero_grad()           
+                    outputs = model(inputs)
+                    loss = criterion(outputs, targets)
+                    loss.backward()       
+                    optimizer.step()
+                    running_loss += loss.item() * inputs.size(0)
+                
+                epoch_train_loss = running_loss / len(train_loader.dataset)
+                print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {epoch_train_loss:.4f}")
+                
+                # Validation Phase
+                model.eval()
+                val_loss = 0.0
+                with torch.no_grad():
+                    for inputs, targets in val_loader:
+                        outputs = model(inputs)
+                        loss = criterion(outputs, targets)
+                        val_loss += loss.item() * inputs.size(0)
+                epoch_val_loss = val_loss / len(val_loader.dataset)
+                print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {epoch_val_loss:.4f}")
+                
+    def testLSTM(self, test_data):
+        try:    
+            criterion = self.params['criterion']        
+            test_loader = self.makeDataLoader(test_data).to(self.device)
+            model.eval()
+            test_loss = 0.0
+            with torch.no_grad():
+                for inputs, targets in test_loader:
+                    outputs = model(inputs)
+                    loss = criterion(outputs, targets)
+                    test_loss += loss.item() * inputs.size()
+        except Exception as e:
+            logging.error("Failed to initialize and test model: %s", e)
+        print(f"Model loss: {test_loss:.4f}")
+        return test_loss
+
+    def exportModel(self, loc):
+        try: 
+            name = f"LSTM{self.params['lstm_layers']}_linear{self.params['linear_layers']_lr={self.params['lr']}.pth"
+            exp_loc = os.path.join(loc, name)
+            torch.save(model, exp_loc)
+        except Exception as e:
+            logging.error("Failed to save model: %s", e)
         
-
-
-
-
-
+    #---------Routines to aid in model creation----------
+    def makeDataLoader(self, data:"tensor dataset")->"torch dataloader":
+        """
+        Creates pytorch dataloader for data according to specs
+        """
+        try:
+            dataloader = DataLoader(data, params['batch_size'], shuffle=True)
+        except Exception as e:
+            logging.error("Failed to create dataloader: %s", e)
+    
+    def initWeights(m, zero_bias=False):
+        try:
+            # Check if the module has a weight attribute and it's not None.
+            if hasattr(m, 'weight') and m.weight is not None:
+                # Apply Xavier uniform initialization to the weight tensor.
+                params['init'](m.weights)
+            if zero_bias:    
+                if m.bias is not None:
+                    m.bias.data.zero_()
+        except Exception as e:
+            logging.error("Failed to initialize weights: %s", e)

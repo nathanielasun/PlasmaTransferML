@@ -7,7 +7,6 @@ import PFileManager as PFM
 logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
 
-
 def dataStats(data:list) -> float:
     """
     Returns the mean and standard deviation of inputted array using scipy

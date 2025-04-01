@@ -1,10 +1,14 @@
 #ignore conda env, os, and jtext info
-jtext_data/
-org_jtext/
+jtext_data/*
+org_jtext/*
 env/
 .env/
 __pycache__/
 .ipynb_checkpoints/
 .DS_Store
-#ignore ML training logs
-logs/
+__pycache__/
+#ignore ML training logs and subdirs
+logs/*
+models/*
+vis.ipynb
+

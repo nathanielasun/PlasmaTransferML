@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import torch
 
 class PMLPreprocessing:
     def __init__(self):
@@ -15,4 +16,9 @@ class PMLPreprocessing:
         random.seed(seed)  # For Python's built-in random module
         torch.backends.cudnn.deterministic = True  # Make cuDNN deterministic
         torch.backends.cudnn.benchmark = False  # Ensure consistency
-    
+
+    def tensorData(self, data:"pd dataframe") -> "torch tensor":
+
+    def padData(self, data:"pd dataframe") -> "padded pd dataframe":
+        """
+        

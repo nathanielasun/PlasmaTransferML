@@ -156,6 +156,12 @@ class PlasmaDataset:
                 self.Dataset.describeDataset(dataset)
             except Exception as e:
                 logging.error('Failed to access preview of %s: %s', dataset, e)
-    
+
+    def makeMLModel(self, dataset:str=None):
+        """
+        Uses model randomizer and data to create an ML model
+        (Currently only LSTM) - trains/validates and tests
+        """
+        
                 
         

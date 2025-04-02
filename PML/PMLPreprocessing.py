@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 import torch
+import logging
 
-
-logging.basicConfig(filename="./logs/PlasmaModel_logs.txt", level=logging.DEBUG,
+logging.basicConfig(filename="../logs/PlasmaModel_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
 
 def set_seed(seed):

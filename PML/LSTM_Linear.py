@@ -38,7 +38,7 @@ class LSTM_Linear(nn.Module):
         input_size = self.parameters['input_size']
         #add LSTM layer(s) to model
         self.model['lstm'] = nn.ModuleList([])
-        for hidden_size in self.parameters['lstm_layers']
+        for hidden_size in self.parameters['lstm_layers']:
             self.model['lstm'].append(nn.LSTM(
                 input_size=input_size, 
                 hidden_size=hidden_size, 
@@ -49,18 +49,18 @@ class LSTM_Linear(nn.Module):
         #add linear layer(s) to model from 'linear_layers'
         self.model['linear'] = nn.ModuleList([])
         in_features = input_size
-        for i in range(len(self.parameters['linear_layers']))
+        for i in range(len(self.parameters['linear_layers'])):
             self.model['linear'].append(
             nn.Linear(
                 in_features=in_features,
                 out_features=self.parameters['linear_layers'][i]
-            )
+            ))
             #implement dropout layers after each linear layer if dropout layers
             if i < len(self.parameters['dropout_layers']):
                 self.model['linear'].append(
                 nn.Dropout(
                     p = self.parameters['dropout_layers'][i]
-                )
+                ))
             out_features = in_features
         #create a one-hot output layer
         self.model['output'] = nn.ModuleList([])

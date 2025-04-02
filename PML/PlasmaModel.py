@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import logging
-from LSTM_Linear import LSTM_Linear
+from PML.LSTM_Linear import LSTM_Linear
 
 logging.basicConfig(filename="../logs/PlasmaModel_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
@@ -64,7 +64,9 @@ class PlasmaModel:
                         val_loss += loss.item() * inputs.size(0)
                 epoch_val_loss = val_loss / len(val_loader.dataset)
                 print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {epoch_val_loss:.4f}")
-                
+        except Exception as e:
+            logging.error("Failed to train model: %s", e)
+            
     def testModel(self, test_data):
         try:    
             criterion = self.params['criterion']        
@@ -83,7 +85,7 @@ class PlasmaModel:
 
     def exportModel(self, loc):
         try: 
-            name = f"LSTM{self.params['lstm_layers']}_linear{self.params['linear_layers']_lr={self.params['lr']}.pth"
+            name = f"LSTM{self.params['lstm_layers']}_linear{self.params['linear_layers']}_lr={self.params['lr']}.pth"
             exp_loc = os.path.join(loc, name)
             torch.save(model, exp_loc)
         except Exception as e:

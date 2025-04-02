@@ -1,8 +1,6 @@
 #ignore conda env, os, and jtext info
 jtext_data/**
-!jtext_data/
 org_jtext/**
-!org_jtext/
 env/
 .env/
 __pycache__/
@@ -11,8 +9,6 @@ __pycache__/
 __pycache__/
 #ignore ML training logs and subdirs
 logs/**
-!logs/
 models/**
-!models/
 vis.ipynb
 

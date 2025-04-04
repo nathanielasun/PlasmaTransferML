@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import logging
 from PML.LSTM_Linear import LSTM_Linear
+from PML.PMLParameters import PMLParameters
 
 logging.basicConfig(filename="../logs/PlasmaModel_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
@@ -21,6 +22,10 @@ class PlasmaModel:
         self.params = parameters
         
     def makeLSTM(self):
+        """
+        Makes an LSTM model using LSTM_Linear and parameters
+        Moves model onto device and assigns model to class instance variable
+        """
         try:
             model = LSTM_Linear(self.params)
             model.to(self.device)
@@ -30,6 +35,8 @@ class PlasmaModel:
             logging.error("Failed to create PlasmaLSTM model: %s", e)
         
     def trainModel(self, train_data, val_data):
+        """
+        """
         try:
             optimizer = params['optimizer'](model.paramters(), lr=params['lr'])
             criterion = params['criterion']

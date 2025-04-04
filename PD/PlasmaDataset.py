@@ -163,5 +163,3 @@ class PlasmaDataset:
             }
         except Exception as e:
             logging.error("Failed to label data: %s", e)
-        
-    

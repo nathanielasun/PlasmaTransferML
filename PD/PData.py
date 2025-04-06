@@ -1,9 +1,11 @@
-import pandas as pd
-import numpy as np
+import gc
 import logging
+import numpy as np
+import pandas as pd
 import os
 import shutil
 import time
+from PD import PFileManager as PFM
 
 logging.basicConfig(filename="./logs/PlasmaDataset_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
@@ -60,8 +62,9 @@ class PData:
                 del self.data[dataset]
             if dataset in self.data_dirs:
                 if os.path.exists(self.data_dirs[dataset]):
-                    self.deleteSubdirs(self.data_dirs[dataset])
+                    PFM.deleteSubdirs(self.data_dirs[dataset])
                 del self.data_dirs[dataset]
+            gc.collect()
             logging.info("Removed dataset %s", dataset)
         except Exception as e:
             logging.error("Failed to remove dataset %s: %s", dataset, e)

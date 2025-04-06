@@ -33,7 +33,16 @@ class PlasmaDataset:
         datastats = PDO.datasetStats(self.Dataset.exportDataComponent('train', 'raw'))
         self.Dataset.updateDatasetComponent('stats', 'stats', datastats)
 
-    def deleteDataset(
+    def deleteDatasets(self, datasets:list=['train', 'test', 'val', 'stats']):
+        """
+        Clears datasets from PData dataset object
+        """
+        for dataset in datasets:
+            try:
+                self.Dataset.deleteDataset(dataset)
+                logging.info("Successfully deleted dataset %s", dataset)
+            except Exception as e:
+                logging.error("Failed to delete dataset %s: %s", dataset, e)
     
     def exportData(self, dataset, component):
         """

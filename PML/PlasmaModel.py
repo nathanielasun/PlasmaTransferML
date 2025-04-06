@@ -120,5 +120,5 @@ class PlasmaModel:
         except Exception as e:
             logging.error("Failed to initialize weights: %s", e)
     #--------data importing routines--------
-    def importData(self, data:"
+    'ef importData(self, data:"'
     

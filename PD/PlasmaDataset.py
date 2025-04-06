@@ -112,16 +112,15 @@ class PlasmaDataset:
             except Exception as e:
                 logging.error('Failed to access preview of %s: %s', dataset, e)
 
-    def saveCSV(self, datasets:list):
+    def saveCSV(self, datasets:list, name:str=None):
         """
         Save specified datasets as CSV
         Saves dataset components as separate CSVs with similar names
         Saves to respective dataset directory in org_dir
         """
-        csv_name = f"{str(self.data_info['split'])}-{str(self.data_info['frac'])}"
         for dataset in datasets:
             try:
-                self.Dataset.saveDatasetCSV(dataset=dataset, file_name=csv_name)
+                self.Dataset.saveDatasetCSV(dataset=dataset, file_name=name)
             except Exception as e:
                 logging.error("Failed to save dataset %s: %s", dataset, e)
     

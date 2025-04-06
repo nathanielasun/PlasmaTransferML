@@ -99,7 +99,7 @@ class PData:
         #export each dataset component as a CSV
         try:
             for component in self.data[dataset]:
-                component_csv_name = f"{file_name}-{dataset}-{component}-{time.strftime('%Y-%m-%d--%H-%M-%s')}.csv"
+                component_csv_name = f"{dataset}-{component}-{time.strftime('%Y-%m-%d--%H-%M-%s') if file_name is None else file_name}.csv"
                 component_csv_path = os.path.join(directory, component_csv_name)
                 self.data[dataset][component].to_csv(component_csv_path, index=False)
         except Exception as e:

@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 import logging
 
-logging.basicConfig(filename="../logs/PlasmaModel_logs.txt", level=logging.DEBUG,
+logging.basicConfig(filename="./logs/PlasmaModel_logs.txt", level=logging.DEBUG,
                     format='%(asctime)s [%(levelname)s] %(message)s')
 
 class PMLParameters:
@@ -23,7 +23,9 @@ class PMLParameters:
         """
         parameter_set = []
         if amount is None:
-            amount = len(self.parameter_list)
+            parameter_list = self.parameter_list.copy()
+            self.parameter_list = []
+            return parameter_list
         for _ in range(amount):
             parameter_set.append(self.parameter_list[0])
             self.parameter_list.remove(self.parameter_list[0])

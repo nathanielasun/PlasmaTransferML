@@ -118,6 +118,7 @@ class PlasmaDataset:
         Saves dataset components as separate CSVs with similar names
         Saves to respective dataset directory in org_dir
         """
+        csv_dirs = {}
         for dataset in datasets:
             try:
                 self.Dataset.saveDatasetCSV(dataset=dataset, file_name=name)

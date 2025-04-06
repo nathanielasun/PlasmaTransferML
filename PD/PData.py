@@ -86,9 +86,10 @@ class PData:
             logging.error("Failed to export %s %s: %s", dataset)
         return self.data[dataset][component]
 
-    def saveDatasetCSV(self, dataset:str, file_name:str, directory:str=None):
+    def saveDatasetCSV(self, dataset:str, file_name:str, directory:str=None)->"file directory dict":
         """
         Save dataset components as CSV in their org_directory folder
+        Returns a dict of saved file paths
         """
         #set directory to "dataset" in org_directory by default
         if directory is None:

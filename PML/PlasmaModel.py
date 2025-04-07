@@ -155,34 +155,34 @@ class PlasmaModel:
             JSON_file = self.json_save_file
     
         # Define the list of parameters you want to include in the JSON file
-        JSON_params = ['lr', 'lstm_layers', 'linear_layers', 'dropout_layers']
+        JSON_params = []
+        for param in parameters:
+            if isinstance(parameters[param], (str, int, float, list)):
+                JSON_params.append(param)
         
         # Create a dictionary of the selected parameters and their values
-        #JSON_dict = {key: parameters[key] for key in JSON_params if key in parameters}
+        JSON_dict = {key: parameters[key] for key in parameters if key in JSON_params}
     
         # Prepare the data to be exported
         JSON_data = {
             'name': name,
-            #'hyperparameters': JSON_dict,  # Changed to use the filtered dictionary
+            'hyperparameters': JSON_dict,  #Changed to use the filtered dictionary
             'metrics': metrics
         }
-    
+
         try:
-            # Read existing JSON data if the file exists
-            try:
-                with open(JSON_file, 'r') as json_file:
-                    existing_json_data = [json.load(json_file)]
-            except FileNotFoundError:
-                # If the file doesn't exist, initialize an empty list
-                existing_json_data = []
-    
-            # Append the new data to the existing data
-            existing_json_data.append(JSON_data)
-    
+            with open(JSON_file, 'r') as json_file:
+                existing_json_data = json.load(json_file)
+        except Exception as e:
+            # If the file doesn't exist, initialize an empty list
+            existing_json_data = []
+            logging.error("Failed to import existing JSON data: %s", e)
+            
+        existing_json_data.append(JSON_data)
+        try:
             # Write the updated data back to the JSON file
             with open(JSON_file, 'w') as json_file:
-                json.dump(existing_json_data, json_file, indent=4)  # indent=4 is for pretty formatting
-    
+                json.dump(existing_json_data, json_file, indent=4)  # indent=4 is for nice formatting
         except Exception as e:
             logging.error("Failed to export JSON for %s: %s", name, e)
         

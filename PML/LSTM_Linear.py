@@ -63,7 +63,7 @@ class LSTM_Linear(nn.Module):
                 nn.Dropout(
                     p = self.params['dropout_layers'][i]
                 ))
-        #create a one-hot output layer
+        #create single neuron output layer
         self.model['output'] = nn.ModuleList([])
         self.model['output'].append(nn.Linear(in_features = in_features, out_features = 1))
         

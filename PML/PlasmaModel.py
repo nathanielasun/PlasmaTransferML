@@ -1,4 +1,5 @@
 import ast
+import json
 import logging
 import numpy as np
 import os
@@ -20,12 +21,18 @@ Class to handle model creation, training, and evaluation
 Makes an model according to input parameter dict (can be received from randomizer)
 """
 class PlasmaModel:
-    def __init__(self, model_save_dir, static_parameters):
+    def __init__(self, model_save_dir, json_save_file, static_parameters):
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
         self.model = None
         self.model_dir = model_save_dir
-        self.model_metrics = {}
+        self.json_save_file = json_save_file
+        self.model_metrics = {
+            'test_loss' : None,
+            'test_tp'   : None,
+            'test_tn'   : None,
+            'test_acc'  : None
+        }
         self.dataloaders = {}
         self.params = static_parameters
         self.param_list = []
@@ -55,7 +62,9 @@ class PlasmaModel:
             self.makeLSTM(parameter_set)
             self.trainModel(self.dataloaders['train_loader'], self.dataloaders['val_loader'])
             self.testModel(self.dataloaders['test_loader'])
-            self.exportModel(self.model_dir)
+            model_name = f"LSTM{self.params['lstm_layers']}_linear{self.params['linear_layers']}_lr={self.params['lr']}.pth"
+            self.exportModel(self.model_dir, name=model_name)
+            self.exportModelMetrics(parameters=parameter_set, metrics=self.model_metrics, name=model_name)
     
     def prepareData(self, data_loc:dict):
         """
@@ -113,14 +122,70 @@ class PlasmaModel:
         return [np.float32(item) for item in lst]
         
     #------------Routines to aid in model management-------------
-    def exportModel(self, loc):
+
+    def accuracy(self, outputs, targets):
+        # Count total correct predictions
+        correct = sum(abs(o - t) < 0.5 for o, t in zip(outputs, targets))
+        
+        # Predicted positives vs. negatives
+        p = sum(o >= 0.5 for o in outputs)
+        n = len(outputs) - p
+        
+        # Correct positives vs. correct negatives
+        tp = sum((abs(o - t) < 0.5) and (o >= 0.5) for o, t in zip(outputs, targets))
+        tn = sum((abs(o - t) < 0.5) and (o < 0.5)  for o, t in zip(outputs, targets))
+        
+        acc = correct / len(outputs)
+        return (tp / p if p else 0.0), (tn / n if n else 0.0), acc
+    
+    def exportModel(self, loc, name):
         try: 
-            name = f"LSTM{self.params['lstm_layers']}_linear{self.params['linear_layers']}_lr={self.params['lr']}.pth"
             exp_loc = os.path.join(loc, name)
             torch.save(self.model.state_dict(), exp_loc)
         except Exception as e:
             logging.error("Failed to save model: %s", e)
-
+            
+    def exportModelMetrics(self, name, parameters, metrics, JSON_file=None):
+        """
+        Exports JSON of model performance
+        Uses model directory to save JSON file
+        Records TP, TN, total pos, total neg, LOSS evaluation, and parameters
+        """
+        if JSON_file is None:
+            JSON_file = self.json_save_file
+    
+        # Define the list of parameters you want to include in the JSON file
+        JSON_params = ['lr', 'lstm_layers', 'linear_layers', 'dropout_layers']
+        
+        # Create a dictionary of the selected parameters and their values
+        #JSON_dict = {key: parameters[key] for key in JSON_params if key in parameters}
+    
+        # Prepare the data to be exported
+        JSON_data = {
+            'name': name,
+            #'hyperparameters': JSON_dict,  # Changed to use the filtered dictionary
+            'metrics': metrics
+        }
+    
+        try:
+            # Read existing JSON data if the file exists
+            try:
+                with open(JSON_file, 'r') as json_file:
+                    existing_json_data = [json.load(json_file)]
+            except FileNotFoundError:
+                # If the file doesn't exist, initialize an empty list
+                existing_json_data = []
+    
+            # Append the new data to the existing data
+            existing_json_data.append(JSON_data)
+    
+            # Write the updated data back to the JSON file
+            with open(JSON_file, 'w') as json_file:
+                json.dump(existing_json_data, json_file, indent=4)  # indent=4 is for pretty formatting
+    
+        except Exception as e:
+            logging.error("Failed to export JSON for %s: %s", name, e)
+        
     def makeLSTM(self, parameters):
         """
         Makes an LSTM model using LSTM_Linear and parameters
@@ -140,16 +205,25 @@ class PlasmaModel:
             criterion = self.params['criterion']        
             self.model.eval()
             test_loss = 0.0
+            tp, tn, acc = 0,0,0
             with torch.no_grad():
                 for inputs, targets in test_loader:
                     outputs = self.model(inputs)
                     loss = criterion(outputs, targets)
+                    tp_new, tn_new, acc_new = self.accuracy(outputs, targets)
+                    tp += tp_new
+                    tn += tn_new
+                    acc += acc_new
                     test_loss += loss.item() * inputs.size(0)
+            self.model_metrics['test_tp'] = float(tp/len(test_loader.dataset))
+            self.model_metrics['test_tn'] = float(tn/len(test_loader.dataset))
+            self.model_metrics['test_acc'] = float(acc/len(test_loader.dataset))
         except Exception as e:
             logging.error("Failed to initialize and test model: %s", e)
         print(f"Model loss: {test_loss:.4f}")
+        self.model_metrics['test_loss'] = test_loss
         return test_loss
-        
+
     def trainModel(self, train_loader, val_loader):
         """
         Train and validate model using train/val dataloaders
@@ -175,7 +249,7 @@ class PlasmaModel:
                 
                 epoch_train_loss = running_loss / len(train_loader.dataset)
                 print(f"Epoch [{epoch+1}/{self.params['epochs']}], Training Loss: {epoch_train_loss:.4f}")
-                
+
                 # Validation Phase
                 self.model.eval()
                 val_loss = 0.0

@@ -53,6 +53,37 @@ class PData:
         except Exception as e:
             logging.error("Failed to make directory for %s: %s", target_dir, e)
     
+    def dataNumpyToList(self, data):
+        """
+        Converts data in component columnn from numpy array to list
+        """
+        converted_data = []
+        try:
+            for row in data:
+                if isinstance(row, list):
+                    if isinstance(row[0], object):
+                        converted_row = [float(np_data) for np_data in row]
+                        converted_data.append(converted_row)
+                    else:
+                        converted_data.append(row)
+                else:
+                    converted_data.append(row)
+        except Exception as e:
+            logging.error("Failed to convert to list: %s", e)
+        return converted_data
+    
+    def datasetNumpyToList(self, dataset):
+        """
+        Converts all dataset features to lists
+        """
+        list_component = pd.DataFrame([])
+        for feature in dataset:
+            list_component = pd.concat([
+                list_component,
+                pd.DataFrame({feature: self.dataNumpyToList(dataset[feature])})
+            ])
+        return list_component
+    
     def deleteDataset(self, dataset:str):
         """
         Deletes dataset from self.data and physical location
@@ -86,26 +117,60 @@ class PData:
             logging.error("Failed to export %s %s: %s", dataset)
         return self.data[dataset][component]
 
-    def saveDatasetCSV(self, dataset:str, file_name:str, directory:str=None)->"file directory dict":
+    def saveDatasetCSV(self, dataset: str, file_name: str = None, directory: str = None) -> dict:
         """
-        Save dataset components as CSV in their org_directory folder
-        Returns a dict of saved file paths
+        Save dataset components as CSV in their org_directory folder.
+        
+        Args:
+            dataset (str): The dataset key (used in self.data and self.data_dirs).
+            file_name (str, optional): Base file name (without .csv). If None, appends timestamp.
+            directory (str, optional): Directory to save files. Defaults to self.data_dirs[dataset].
+        
+        Returns:
+            dict: A dictionary mapping each dataset component to the full path of its saved CSV file.
         """
-        #set directory to "dataset" in org_directory by default
+        
+        # Default directory: "dataset" subfolder in self.data_dirs
         if directory is None:
             directory = self.data_dirs[dataset]
-        #remove csv ending if specified by accident
-        if "csv" in file_name.split("."):
+        
+        # Strip ".csv" if it's accidentally in file_name
+        if file_name and "csv" in file_name.lower():
             file_name = file_name.split(".")[0]
-        #export each dataset component as a CSV
+        
+        # Build a dictionary to track saved paths
+        saved_paths = {}
+
         try:
             for component in self.data[dataset]:
-                component_csv_name = f"{dataset}-{component}-{time.strftime('%Y-%m-%d--%H-%M-%s') if file_name is None else file_name}.csv"
+                # Use timestamp if no file_name is given; note '%S' for seconds (uppercase S)
+                time_part = time.strftime('%Y-%m-%d--%H-%M-%S') if file_name is None else file_name
+                
+                # Construct the CSV filename
+                component_csv_name = f"{dataset}-{component}-{time_part}.csv"
                 component_csv_path = os.path.join(directory, component_csv_name)
-                self.data[dataset][component].to_csv(component_csv_path, index=False)
+                
+                #converts all dataset component features to lists (from numpy arrays)
+                export_component = self.datasetNumpyToList(self.data[dataset][component])
+
+                # Write CSV with explicit comma separator and UTF-8 BOM (helps Excel on Windows)
+                self.data[dataset][component].to_csv(
+                    component_csv_path,
+                    index=False,
+                    sep=',',
+                    encoding='utf-8-sig'
+                )
+            
+                # Save the path in our tracking dict
+                saved_paths[component] = component_csv_path
+
         except Exception as e:
-            logging.error("Failed to save %s csv: %s", dataset, e)
+            logging.error("Failed to save %s CSV: %s", dataset, e)
+            # Optionally re-raise or return an empty dict
+            # raise e
         
+        return saved_paths
+
     def setOrgDir(self, new_org_dir):
         """
         Routine to update organized data root directory if needed

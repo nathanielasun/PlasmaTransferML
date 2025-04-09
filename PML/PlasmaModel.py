@@ -117,26 +117,48 @@ class PlasmaModel:
     #-----------Routines to aid in data interpretation-----------
 
     def string_to_list(self, s):
-        # Use ast.literal_eval for conversion from string to list
+        """
+        Pretty self explanatory
+        """
+        s = s.replace('np.float64(', '').replace(')', '')
         lst = ast.literal_eval(s)
         return [np.float32(item) for item in lst]
+
         
     #------------Routines to aid in model management-------------
 
     def accuracy(self, outputs, targets):
-        # Count total correct predictions
-        correct = sum(abs(o - t) < 0.5 for o, t in zip(outputs, targets))
+        """
+        Computes True Positives (TP), True Negatives (TN), and overall accuracy.
+
+        Args:
+            outputs (torch.Tensor): Model predictions (probabilities).
+            targets (torch.Tensor): Ground truth labels.
+
+        Returns:
+            tuple: (true_positive_rate, true_negative_rate, overall_accuracy)
+        """
+        # Apply sigmoid if outputs are logits
+        if outputs.ndim == targets.ndim:
+            outputs = torch.sigmoid(outputs)
+
+        # Convert probabilities to binary predictions
+        preds = (outputs >= 0.5).float()
+
+        # Calculate True Positives (TP), True Negatives (TN)
+        tp = ((preds == 1) & (targets == 1)).sum().item()
+        tn = ((preds == 0) & (targets == 0)).sum().item()
         
-        # Predicted positives vs. negatives
-        p = sum(o >= 0.5 for o in outputs)
-        n = len(outputs) - p
+        # Total number of positive and negative examples
+        p = (targets == 1).sum().item()
+        n = (targets == 0).sum().item()
         
-        # Correct positives vs. correct negatives
-        tp = sum((abs(o - t) < 0.5) and (o >= 0.5) for o, t in zip(outputs, targets))
-        tn = sum((abs(o - t) < 0.5) and (o < 0.5)  for o, t in zip(outputs, targets))
-        
-        acc = correct / len(outputs)
-        return (tp / p if p else 0.0), (tn / n if n else 0.0), acc
+        # Compute rates
+        tp_rate = tp / p if p else 0.0
+        tn_rate = tn / n if n else 0.0
+        overall_acc = (tp + tn) / (p + n)
+
+        return tp_rate, tn_rate, overall_acc
     
     def exportModel(self, loc, name):
         try: 
@@ -199,30 +221,44 @@ class PlasmaModel:
     
     def testModel(self, test_loader):
         """
-        Tests current model with test_loader data
+        Tests the current model using data from test_loader.
+
+        Args:
+            test_loader (DataLoader): DataLoader for the test dataset.
+
+        Returns:
+            float: Average test loss.
         """
-        try:    
-            criterion = self.params['criterion']        
+        try:
+            criterion = self.params['criterion']
             self.model.eval()
+            device = next(self.model.parameters()).device  # Get model's device
             test_loss = 0.0
-            tp, tn, acc = 0,0,0
+            tp_total, tn_total, acc_total = 0, 0, 0
+
             with torch.no_grad():
                 for inputs, targets in test_loader:
+                    inputs, targets = inputs.to(device), targets.to(device)
                     outputs = self.model(inputs)
                     loss = criterion(outputs, targets)
-                    tp_new, tn_new, acc_new = self.accuracy(outputs, targets)
-                    tp += tp_new
-                    tn += tn_new
-                    acc += acc_new
+                    tp_rate, tn_rate, acc = self.accuracy(outputs, targets)
+                    
+                    # Accumulate metrics
+                    tp_total += tp_rate * inputs.size(0)
+                    tn_total += tn_rate * inputs.size(0)
+                    acc_total += acc * inputs.size(0)
                     test_loss += loss.item() * inputs.size(0)
-            self.model_metrics['test_tp'] = float(tp/len(test_loader.dataset))
-            self.model_metrics['test_tn'] = float(tn/len(test_loader.dataset))
-            self.model_metrics['test_acc'] = float(acc/len(test_loader.dataset))
+
+            # Compute average metrics
+            dataset_size = len(test_loader.dataset)
+            self.model_metrics['test_tp'] = tp_total / dataset_size
+            self.model_metrics['test_tn'] = tn_total / dataset_size
+            self.model_metrics['test_acc'] = acc_total / dataset_size
+            self.model_metrics['test_loss'] = test_loss / dataset_size
+
         except Exception as e:
-            logging.error("Failed to initialize and test model: %s", e)
-        print(f"Model loss: {test_loss:.4f}")
-        self.model_metrics['test_loss'] = test_loss
-        return test_loss
+            logging.error("Failed to test model: %s", e)
+            return None
 
     def trainModel(self, train_loader, val_loader):
         """
